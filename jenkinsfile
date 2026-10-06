@@ -2,83 +2,68 @@ pipeline {
     agent any
 
     environment {
-        FLUTTER_HOME = "${WORKSPACE}/flutter"
+        FLUTTER_HOME = "/var/lib/jenkins/flutter_sdk"
         PATH = "${FLUTTER_HOME}/bin:${FLUTTER_HOME}/bin/cache/dart-sdk/bin:${env.PATH}"
     }
 
     stages {
-
-        stage('Checkout') {
-            steps {
-                echo 'Checking out Flutter project...'
-                checkout scm
-            }
-        }
-
-        stage('Install Flutter') {
+        stage('Setup Flutter') {
             steps {
                 sh '''
+                    # Clone Flutter SDK if not already cached
                     if [ ! -d "$FLUTTER_HOME" ]; then
                         git clone https://github.com/flutter/flutter.git -b stable "$FLUTTER_HOME"
                     fi
 
+                    # Prevent git dubious ownership errors
+                    git config --global --add safe.directory "$FLUTTER_HOME"
+
                     flutter --version
-                    flutter doctor
+                    flutter doctor -v
                 '''
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh '''
-                    flutter pub get
-                '''
+                sh 'flutter pub get'
             }
         }
 
-        stage('Analyze') {
+        stage('Analyze & Lint') {
             steps {
-                sh '''
-                    flutter analyze
-                '''
+                sh 'flutter analyze'
             }
         }
 
-        stage('Test') {
+        stage('Run Tests') {
             steps {
-                sh '''
-                    flutter test
-                '''
+                sh 'flutter test'
             }
         }
 
-        stage('Build APK') {
+        stage('Build Web') {
             steps {
-                sh '''
-                    flutter build apk --release
-                '''
+                // Build the production web bundle
+                sh 'flutter build web --release'
             }
         }
 
-        stage('Archive APK') {
+        stage('Archive Artifacts') {
             steps {
-                archiveArtifacts artifacts: 'build/app/outputs/flutter-apk/app-release.apk',
-                                 fingerprint: true
+                // Package the build/web directory into a single tarball
+                sh 'tar -czf flutter-web.tar.gz -C build/web .'
+                archiveArtifacts artifacts: 'flutter-web.tar.gz', fingerprint: true
             }
         }
     }
 
     post {
         success {
-            echo 'Flutter build completed successfully!'
+            echo 'Flutter build succeeded!'
         }
-
         failure {
-            echo 'Flutter build failed!'
-        }
-
-        always {
-            echo 'Jenkins pipeline finished.'
+            echo 'Flutter build failed. Check console output.'
         }
     }
 }
