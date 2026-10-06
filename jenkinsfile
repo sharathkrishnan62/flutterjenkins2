@@ -1,37 +1,50 @@
 pipeline {
     agent any
 
-    stages {
+    environment {
+        FLUTTER_HOME = "/var/lib/jenkins/flutter_sdk"
+        PATH = "${FLUTTER_HOME}/bin:${FLUTTER_HOME}/bin/cache/dart-sdk/bin:${env.PATH}"
+    }
 
+    stages {
         stage('Install Dependencies') {
             steps {
-                bat 'flutter pub get'
+                sh 'flutter pub get'
             }
         }
 
         stage('Analyze') {
             steps {
-                bat 'flutter analyze'
+                sh 'flutter analyze'
             }
         }
 
         stage('Test') {
             steps {
-                bat 'flutter test'
+                sh 'flutter test'
             }
         }
 
         stage('Build Web') {
             steps {
-                bat 'flutter build web --release'
+                sh 'flutter build web --release'
             }
         }
 
         stage('Archive Web') {
             steps {
-                archiveArtifacts artifacts: 'build\\web\\**',
-                                  fingerprint: true
+                sh 'tar -czf flutter-web.tar.gz -C build/web .'
+                archiveArtifacts artifacts: 'flutter-web.tar.gz', fingerprint: true
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Flutter Web build completed successfully!'
+        }
+        failure {
+            echo 'Build failed. Check the logs above.'
         }
     }
 }
