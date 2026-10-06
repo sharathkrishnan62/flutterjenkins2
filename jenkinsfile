@@ -1,12 +1,13 @@
 pipeline {
     agent any
 
-    environment {
-        FLUTTER_HOME = "/var/lib/jenkins/flutter_sdk"
-        PATH = "${FLUTTER_HOME}/bin:${FLUTTER_HOME}/bin/cache/dart-sdk/bin:${env.PATH}"
-    }
-
     stages {
+        stage('Environment Check') {
+            steps {
+                sh 'flutter --version'
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
                 sh 'flutter pub get'
@@ -41,7 +42,7 @@ pipeline {
 
     post {
         success {
-            echo 'Flutter Web build completed successfully!'
+            echo 'Build completed successfully!'
         }
         failure {
             echo 'Build failed. Check the logs above.'
