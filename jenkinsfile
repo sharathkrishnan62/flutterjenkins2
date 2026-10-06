@@ -1,0 +1,84 @@
+pipeline {
+    agent any
+
+    environment {
+        FLUTTER_HOME = "${WORKSPACE}/flutter"
+        PATH = "${FLUTTER_HOME}/bin:${FLUTTER_HOME}/bin/cache/dart-sdk/bin:${env.PATH}"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Checking out Flutter project...'
+                checkout scm
+            }
+        }
+
+        stage('Install Flutter') {
+            steps {
+                sh '''
+                    if [ ! -d "$FLUTTER_HOME" ]; then
+                        git clone https://github.com/flutter/flutter.git -b stable "$FLUTTER_HOME"
+                    fi
+
+                    flutter --version
+                    flutter doctor
+                '''
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                    flutter pub get
+                '''
+            }
+        }
+
+        stage('Analyze') {
+            steps {
+                sh '''
+                    flutter analyze
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh '''
+                    flutter test
+                '''
+            }
+        }
+
+        stage('Build APK') {
+            steps {
+                sh '''
+                    flutter build apk --release
+                '''
+            }
+        }
+
+        stage('Archive APK') {
+            steps {
+                archiveArtifacts artifacts: 'build/app/outputs/flutter-apk/app-release.apk',
+                                 fingerprint: true
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Flutter build completed successfully!'
+        }
+
+        failure {
+            echo 'Flutter build failed!'
+        }
+
+        always {
+            echo 'Jenkins pipeline finished.'
+        }
+    }
+}
